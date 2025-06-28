@@ -1,68 +1,72 @@
-import time
-import copy
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
+import numpy as np
+import random
+import time
 
-# Constants
-TREE = 'T'
-FIRE = 'F'
-EMPTY = ' '
+# Grid codes: 0 - empty, 1 - tree, 2 - burning
+EMPTY, TREE, BURNING = 0, 1, 2
 
-# Create the forest grid
+# Wind direction: 'N', 'S', 'E', 'W' (You can change this)
+wind_direction = input("Enter wind direction (N, S, E, W): ").strip().upper()
+if wind_direction not in ['N', 'S', 'E', 'W']:
+    print("Invalid input. Defaulting to East (E).")
+    wind_direction = 'E'
+
+# Wind bias: makes spread more likely in wind direction
+wind_bias = {
+    'N': (-1, 0),
+    'S': (1, 0),
+    'E': (0, 1),
+    'W': (0, -1)
+}
 
 
-def create_forest(size=10):
-    forest = [[TREE for _ in range(size)] for _ in range(size)]
-    mid = size // 2
-    forest[mid][mid] = FIRE  # Start fire at center
+def initialize_forest(size):
+    forest = np.ones((size, size), dtype=int)
+    forest[size//2][size//2] = BURNING  # Start fire in the center
     return forest
-
-# Simulate one step of fire spread
 
 
 def spread_fire(forest):
-    new_forest = copy.deepcopy(forest)
-    size = len(forest)
+    new_forest = forest.copy()
+    size = forest.shape[0]
+    drc = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # N, S, W, E
 
     for i in range(size):
         for j in range(size):
-            if forest[i][j] == FIRE:
+            if forest[i][j] == BURNING:
                 new_forest[i][j] = EMPTY
-                for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                for dx, dy in drc:
                     ni, nj = i + dx, j + dy
                     if 0 <= ni < size and 0 <= nj < size:
                         if forest[ni][nj] == TREE:
-                            new_forest[ni][nj] = FIRE
+                            # Wind helps in its direction
+                            is_wind_dir = (dx, dy) == wind_bias[wind_direction]
+                            chance = 0.9 if is_wind_dir else 0.3
+                            if random.random() < chance:
+                                new_forest[ni][nj] = BURNING
     return new_forest
 
-# Convert forest to numeric grid for plotting
 
-
-def convert_to_numeric(forest):
-    mapping = {TREE: 1, FIRE: 2, EMPTY: 0}
-    return [[mapping[cell] for cell in row] for row in forest]
-
-# Display forest using matplotlib
-
-
-def display_forest_plot(forest, step):
-    color_map = mcolors.ListedColormap(['lightgray', 'green', 'red'])
-    numeric_forest = convert_to_numeric(forest)
-    plt.imshow(numeric_forest, cmap=color_map, vmin=0, vmax=2)
-    plt.title(f"Forest Fire - Step {step}")
+def visualize_forest(forest, step):
+    colors = {EMPTY: (1, 1, 1), TREE: (0, 0.6, 0), BURNING: (1, 0, 0)}
+    rgb_grid = np.zeros(forest.shape + (3,))
+    for val, color in colors.items():
+        rgb_grid[forest == val] = color
+    plt.imshow(rgb_grid)
+    plt.title(f"Step {step} - Wind: {wind_direction}")
     plt.axis('off')
-    plt.pause(0.8)
-    plt.clf()
+    plt.pause(0.5)
 
 
-# Run the simulation
-forest = create_forest()
-steps = 15
+def simulate_fire(steps=20, size=10):
+    forest = initialize_forest(size)
+    plt.figure(figsize=(5, 5))
+    for step in range(steps):
+        visualize_forest(forest, step)
+        forest = spread_fire(forest)
+    plt.show()
 
-plt.figure(figsize=(6, 6))
 
-for step in range(steps):
-    display_forest_plot(forest, step)
-    forest = spread_fire(forest)
-
-plt.close()
+if __name__ == "__main__":
+    simulate_fire()
