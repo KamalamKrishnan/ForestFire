@@ -19,6 +19,11 @@ def fetch_fire_data(url):
     resp = requests.get(url)
     resp.raise_for_status()
     df = pd.read_csv(StringIO(resp.text))
+
+    # ✅ Save the fire data to CSV for simulation use
+    df.to_csv("firms_fire_data.csv", index=False)
+    print("Saved data to firms_fire_data.csv")
+
     return df
 
 

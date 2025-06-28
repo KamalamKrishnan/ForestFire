@@ -8,32 +8,40 @@ from io import StringIO
 EMPTY, TREE, BURNING = 0, 1, 2
 GRID_SIZE = 50
 STEPS = 30
-FIRMS_URL = "https://firms.modaps.eosdis.nasa.gov/api/country/csv/MODIS/3/IND/1"
+
+# ✅ Replace with your actual API key
+API_KEY = "d719b8824223cf19646321db19e7c59b"
+SOURCE = "VIIRS_SNPP_NRT"
+AREA = "68,6,98,36"  # India's bounding box
+DAYS = 3
+
+FIRMS_URL = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{API_KEY}/{SOURCE}/{AREA}/{DAYS}"
 
 # Initialize forest
 
 
 def create_forest():
-    forest = np.ones((GRID_SIZE, GRID_SIZE), dtype=int)
-    return forest
+    return np.ones((GRID_SIZE, GRID_SIZE), dtype=int)
 
 # Fetch FIRMS fire data
 
 
 def fetch_firms_data(url):
     resp = requests.get(url)
+    resp.raise_for_status()
     df = pd.read_csv(StringIO(resp.text))
     return df[['latitude', 'longitude']]
 
-# Convert lat/lon to grid coords (simple simulated conversion)
+# Map lat/lon to grid (simplified)
 
 
 def map_to_grid(lat, lon):
-    row = int((lat - 5) % 50)  # Adjust as needed
-    col = int((lon - 60) % 50)
+    # Normalize India lat: 6-36 → 0–GRID_SIZE, lon: 68–98 → 0–GRID_SIZE
+    row = int((36 - lat) / 30 * GRID_SIZE)  # latitude goes top to bottom
+    col = int((lon - 68) / 30 * GRID_SIZE)
     return row, col
 
-# Apply FIRMS data to forest
+# Place fires into forest grid
 
 
 def apply_fire_spots(forest, spots):
@@ -43,7 +51,7 @@ def apply_fire_spots(forest, spots):
             forest[r][c] = BURNING
     return forest
 
-# Spread fire with wind direction
+# Spread fire logic
 
 
 def spread_fire(forest, wind='N'):
@@ -53,13 +61,13 @@ def spread_fire(forest, wind='N'):
             if forest[r][c] == TREE:
                 neighbors = []
                 if r > 0:
-                    neighbors.append(forest[r-1][c])     # North
+                    neighbors.append(forest[r-1][c])  # N
                 if r < GRID_SIZE-1:
-                    neighbors.append(forest[r+1][c])  # South
+                    neighbors.append(forest[r+1][c])  # S
                 if c > 0:
-                    neighbors.append(forest[r][c-1])     # West
+                    neighbors.append(forest[r][c-1])  # W
                 if c < GRID_SIZE-1:
-                    neighbors.append(forest[r][c+1])  # East
+                    neighbors.append(forest[r][c+1])  # E
 
                 wind_bonus = {
                     'N': forest[r-1][c] if r > 0 else EMPTY,
@@ -74,28 +82,27 @@ def spread_fire(forest, wind='N'):
                 new_forest[r][c] = EMPTY
     return new_forest
 
-# Plot forest grid
+# Visualize the forest grid
 
 
 def visualize_forest(forest, step):
     colors = {EMPTY: (0.9, 0.9, 0.9), TREE: (0, 0.6, 0), BURNING: (1, 0, 0)}
     rgb_grid = np.array([[colors[cell] for cell in row] for row in forest])
     plt.imshow(rgb_grid)
-    plt.title(f"Step {step}")
+    plt.title(f"🔥 Forest Fire Spread - Step {step}")
     plt.axis('off')
     plt.pause(0.3)
 
-# Main simulation
+# Main simulation loop
 
 
 def simulate_fire():
     wind = input("Enter wind direction (N, S, E, W): ").upper()
     forest = create_forest()
 
-    # Load FIRMS data
-    print("Fetching FIRMS data...")
+    print("📡 Fetching FIRMS data...")
     spots = fetch_firms_data(FIRMS_URL)
-    print(f"🔥 Found {len(spots)} real hotspots")
+    print(f"🔥 Found {len(spots)} fire hotspots in last {DAYS} days")
     forest = apply_fire_spots(forest, spots)
 
     plt.figure(figsize=(6, 6))
@@ -111,7 +118,7 @@ def simulate_fire():
 
     plt.close()
     plt.plot(burning_history, color='red')
-    plt.title("Burning Trees Over Time")
+    plt.title("🔥 Burning Trees Over Time")
     plt.xlabel("Step")
     plt.ylabel("Burning Count")
     plt.grid(True)
