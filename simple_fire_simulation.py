@@ -23,7 +23,7 @@ wind_bias = {
 
 def initialize_forest(size):
     forest = np.ones((size, size), dtype=int)
-    forest[size//2][size//2] = BURNING  # Start fire in the center
+    forest[size // 2][size // 2] = BURNING  # Start fire in the center
     return forest
 
 
@@ -61,10 +61,24 @@ def visualize_forest(forest, step):
 
 def simulate_fire(steps=20, size=10):
     forest = initialize_forest(size)
+    burning_counts = []  # 📊 Track how many trees are burning each step
+
     plt.figure(figsize=(5, 5))
     for step in range(steps):
         visualize_forest(forest, step)
+        burning_count = np.count_nonzero(forest == BURNING)
+        burning_counts.append(burning_count)
         forest = spread_fire(forest)
+    plt.show()
+
+    # 📈 Plot burning trees over time
+    plt.figure(figsize=(8, 4))
+    plt.plot(burning_counts, marker='o', color='orange')
+    plt.title("Burning Trees Over Time")
+    plt.xlabel("Time Step")
+    plt.ylabel("Number of Burning Trees")
+    plt.grid(True)
+    plt.tight_layout()
     plt.show()
 
 
