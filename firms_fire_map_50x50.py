@@ -3,6 +3,7 @@ from folium.plugins import TimestampedGeoJson
 import pandas as pd
 import folium
 import requests
+from bs4 import BeautifulSoup
 
 # Constants
 INDIA_GEOJSON_URL = "https://raw.githubusercontent.com/geohacker/india/master/state/india_telengana.geojson"
@@ -160,7 +161,61 @@ def main():
 
     # Save the map
     m.save(MAP_FILENAME)
-    print(f"✅ Fire simulation map saved to: {MAP_FILENAME}")
+
+    # === 🔥 Inject Animation CSS and JS into HTML ===
+    with open(MAP_FILENAME, 'r', encoding='utf-8') as f:
+        soup = BeautifulSoup(f, 'html.parser')
+
+    # CSS for animation 🔴
+    style_tag = soup.new_tag("style")
+    style_tag.string = """
+    .pulse {
+        width: 20px;
+        height: 20px;
+        background: red;
+        border-radius: 50%;
+        box-shadow: 0 0 10px red;
+        animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(0.9); opacity: 0.7; }
+        50% { transform: scale(1.2); opacity: 1; }
+        100% { transform: scale(0.9); opacity: 0.7; }
+    }
+    """
+    soup.head.append(style_tag)
+
+    # JavaScript to create pulsing markers
+    script_tag = soup.new_tag("script")
+    script_tag.string = """
+    function addPulse(lat, lon) {
+        const divIcon = L.divIcon({
+            className: '',
+            html: '<div class="pulse"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+        });
+
+        const marker = L.marker([lat, lon], { icon: divIcon });
+        marker.addTo(window._mapInstance || document.querySelector('.leaflet-container')._leaflet_map);
+    }
+
+    const fireData = [
+        { latitude: 24.5, longitude: 78.4 },
+        { latitude: 25.2, longitude: 78.8 },
+        { latitude: 22.7, longitude: 80.1 },
+        { latitude: 23.9, longitude: 79.5 }
+    ];
+
+    fireData.forEach(d => addPulse(d.latitude, d.longitude));
+    """
+    soup.body.append(script_tag)
+
+    # Write updated HTML back
+    with open(MAP_FILENAME, 'w', encoding='utf-8') as f:
+        f.write(str(soup))
+
+    print(f"✅ Fire simulation map saved to: {MAP_FILENAME} (with animation!)")
 
 
 if __name__ == '__main__':
